@@ -27,10 +27,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $car = pg_fetch_assoc($res);
 
                 if ($car) {
-                    // Insert into cars table
+                    // Get the image path from car_images table for this pending car first
+                    $img_res = pg_query_params($conn, "SELECT image_path FROM car_images WHERE car_id = $1 LIMIT 1", [$car_id]);
+                    $image_data = pg_fetch_assoc($img_res);
+                    $image_path = $image_data['image_path'] ?? 'https://via.placeholder.com/400x300?text=No+Image';
+
+                    // Insert into cars table with image_path
                     $insert = pg_query_params($conn, "
-                        INSERT INTO cars (owner_id, car_name, model, brand, model_year, price_per_day, available, created_at)
-                        VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW())
+                        INSERT INTO cars (owner_id, car_name, model, brand, model_year, price_per_day, image_path, available, created_at)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, NOW())
                         RETURNING id
                     ", [
                         $car['owner_id'], 
@@ -38,17 +43,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $car['model'], 
                         $car['brand'], 
                         $car['model_year'], 
-                        $car['price_per_day']
+                        $car['price_per_day'],
+                        $image_path
                     ]);
 
                     if ($insert && pg_num_rows($insert) > 0) {
                         $new_car = pg_fetch_assoc($insert);
                         $new_car_id = $new_car['id'];
-
-                        // Get the image path from car_images table for this pending car
-                        $img_res = pg_query_params($conn, "SELECT image_path FROM car_images WHERE car_id = $1 LIMIT 1", [$car_id]);
-                        $image_data = pg_fetch_assoc($img_res);
-                        $image_path = $image_data['image_path'] ?? null;
 
                         // Copy images from pending car to new approved car
                         $img_res_all = pg_query_params($conn, "SELECT * FROM car_images WHERE car_id = $1", [$car_id]);
