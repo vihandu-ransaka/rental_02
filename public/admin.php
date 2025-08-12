@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Get the image path from car_images table for this pending car first
                     $img_res = pg_query_params($conn, "SELECT image_path FROM car_images WHERE car_id = $1 LIMIT 1", [$car_id]);
                     $image_data = pg_fetch_assoc($img_res);
-                    $image_path = $image_data['image_path'] ?? 'https://via.placeholder.com/400x300?text=No+Image';
+                    $image_path = $image_data['image_path'] ?? 'https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg?auto=compress&cs=tinysrgb&w=400';
 
                     // Insert into cars table with image_path
                     $insert = pg_query_params($conn, "
@@ -358,7 +358,7 @@ function getImageUrl($image_path) {
         <?php if (!$approved_cars): ?>
           <div class="text-center py-8">
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
             <h3 class="mt-2 text-sm font-medium text-gray-900">No approved cars</h3>
             <p class="mt-1 text-sm text-gray-500">No cars have been approved yet.</p>
