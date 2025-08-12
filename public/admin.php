@@ -45,9 +45,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $new_car = pg_fetch_assoc($insert);
                         $new_car_id = $new_car['id'];
 
-                        // Copy images from pending_cars to cars_images with new car_id
-                        $img_res = pg_query_params($conn, "SELECT * FROM car_images WHERE car_id = $1", [$car_id]);
-                        while ($img = pg_fetch_assoc($img_res)) {
+                        // Get the image path from car_images table for this pending car
+                        $img_res = pg_query_params($conn, "SELECT image_path FROM car_images WHERE car_id = $1 LIMIT 1", [$car_id]);
+                        $image_data = pg_fetch_assoc($img_res);
+                        $image_path = $image_data['image_path'] ?? null;
+
+                        // Copy images from pending car to new approved car
+                        $img_res_all = pg_query_params($conn, "SELECT * FROM car_images WHERE car_id = $1", [$car_id]);
+                        while ($img = pg_fetch_assoc($img_res_all)) {
                             pg_query_params($conn, "
                                 INSERT INTO car_images (car_id, image_path, created_at) 
                                 VALUES ($1, $2, NOW())
@@ -65,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $car['brand'],
                             $car['model_year'],
                             $car['price_per_day'],
-                            $img['image_path'] ?? null
+                            $image_path
                         ]);
 
                         if ($available_insert) {
@@ -95,20 +100,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'reject') {
             // Delete pending car and its images
             pg_query_params($conn, "DELETE FROM car_images WHERE car_id = $1", [$car_id]);
-            pg_query_params($conn, "DELETE FROM pending_cars WHERE car_id = $1", [$car_id]);
-            $_SESSION['message'] = "Car rejected and deleted.";
+            $delete_result = pg_query_params($conn, "DELETE FROM pending_cars WHERE car_id = $1", [$car_id]);
+            
+            if ($delete_result) {
+                $_SESSION['message'] = "Car rejected and deleted successfully.";
+            } else {
+                $_SESSION['message'] = "Error rejecting car.";
+            }
             header('Location: admin.php');
             exit;
 
         } elseif ($action === 'delete') {
-            // Delete approved car and its images
-            pg_query_params($conn, "DELETE FROM available_cars WHERE car_id = $1", [$car_id]);
-            pg_query_params($conn, "DELETE FROM car_images WHERE car_id = $1", [$car_id]);
-            pg_query_params($conn, "DELETE FROM cars WHERE id = $1", [$car_id]);
-            $_SESSION['message'] = "Approved car deleted.";
+            // Delete approved car and its related data
+            pg_query($conn, 'BEGIN');
+            
+            try {
+                // Delete from available_cars first
+                pg_query_params($conn, "DELETE FROM available_cars WHERE car_id = $1", [$car_id]);
+                
+                // Delete car images
+                pg_query_params($conn, "DELETE FROM car_images WHERE car_id = $1", [$car_id]);
+                
+                // Delete any bookings for this car
+                pg_query_params($conn, "DELETE FROM bookings WHERE car_id = $1", [$car_id]);
+                
+                // Finally delete the car itself
+                $delete_car = pg_query_params($conn, "DELETE FROM cars WHERE id = $1", [$car_id]);
+                
+                if ($delete_car) {
+                    pg_query($conn, 'COMMIT');
+                    $_SESSION['message'] = "Approved car deleted successfully.";
+                } else {
+                    throw new Exception("Failed to delete car.");
+                }
+            } catch (Exception $e) {
+                pg_query($conn, 'ROLLBACK');
+                $_SESSION['message'] = "Error deleting car: " . $e->getMessage();
+            }
+            
             header('Location: admin.php');
             exit;
         }
+    } else {
+        $_SESSION['message'] = "Invalid request parameters.";
+        header('Location: admin.php');
+        exit;
     }
 }
 
@@ -119,6 +155,7 @@ $pending_sql = "
            ci.image_path
     FROM pending_cars p
     LEFT JOIN car_images ci ON p.car_id = ci.car_id
+    WHERE p.status = 'pending'
     ORDER BY p.car_id, p.created_at DESC
 ";
 $res_pending = pg_query($conn, $pending_sql);
@@ -271,26 +308,31 @@ function getImageUrl($image_path) {
                   </div>
                 </div>
                 
-                <form method="POST" class="mt-4 flex gap-2">
-                  <input type="hidden" name="car_id" value="<?= $car['car_id'] ?>" />
-                  <button 
-                    type="submit" 
-                    name="action" 
-                    value="approve" 
-                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Approve
-                  </button>
-                  <button 
-                    type="submit" 
-                    name="action" 
-                    value="reject" 
-                    class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    onclick="return confirm('Are you sure you want to reject this car? This action cannot be undone.')"
-                  >
-                    Reject
-                  </button>
-                </form>
+                <div class="mt-4 flex gap-2">
+                  <form method="POST" class="flex-1">
+                    <input type="hidden" name="car_id" value="<?= $car['car_id'] ?>" />
+                    <button 
+                      type="submit" 
+                      name="action" 
+                      value="approve" 
+                      class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Approve
+                    </button>
+                  </form>
+                  <form method="POST" class="flex-1">
+                    <input type="hidden" name="car_id" value="<?= $car['car_id'] ?>" />
+                    <button 
+                      type="submit" 
+                      name="action" 
+                      value="reject" 
+                      class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                      onclick="return confirm('Are you sure you want to reject this car? This action cannot be undone.')"
+                    >
+                      Reject
+                    </button>
+                  </form>
+                </div>
               </div>
             <?php endforeach; ?>
           </div>
