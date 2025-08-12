@@ -19,21 +19,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $brand = trim($_POST['brand'] ?? '');
     $model_year = intval($_POST['model_year'] ?? 0);
     $price_per_day = floatval($_POST['price_per_day'] ?? 0);
+    $image_url = trim($_POST['image_url'] ?? '');
 
     if (!$car_name || !$brand || !$model_year || !$price_per_day) {
         $message = "Please fill in all required fields.";
-    } elseif (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
-        $message = "Please upload a valid car image.";
+    } elseif (empty($image_url) && (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK)) {
+        $message = "Please either upload a car image or provide an image URL.";
     } else {
-        $upload_dir = 'uploads/cars/';
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
+        $image_path = '';
+        
+        if (!empty($image_url)) {
+            // Use the provided URL directly
+            $image_path = $image_url;
+        } else {
+            // Handle file upload
+            $upload_dir = 'uploads/cars/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+
+            $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($_FILES['image']['name']));
+            $target_file = $upload_dir . $filename;
+
+            if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
+                $image_path = '/' . $target_file;
+            } else {
+                $message = "Failed to upload image.";
+            }
         }
-
-        $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($_FILES['image']['name']));
-        $target_file = $upload_dir . $filename;
-
-        if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
+        
+        if (!empty($image_path)) {
             $insert_car_sql = "INSERT INTO pending_cars (owner_id, car_name, model, brand, model_year, price_per_day, created_at, status) 
                                VALUES ($1, $2, $3, $4, $5, $6, NOW(), 'pending') RETURNING car_id";
             $result = pg_query_params($conn, $insert_car_sql, [
@@ -44,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $car_id = $row['car_id'];
 
                 $insert_img_sql = "INSERT INTO car_images (car_id, image_path, created_at) VALUES ($1, $2, NOW())";
-                pg_query_params($conn, $insert_img_sql, [$car_id, $target_file]);
+                pg_query_params($conn, $insert_img_sql, [$car_id, $image_path]);
 
                 $_SESSION['message'] = "Car added successfully and pending admin approval.";
                 header("Location: " . $_SERVER['PHP_SELF']);
@@ -52,8 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $message = "Failed to save car data.";
             }
-        } else {
-            $message = "Failed to upload image.";
         }
     }
 }
@@ -83,8 +96,20 @@ $res_approved = pg_query_params($conn, $approved_sql, [$owner_id]);
 $approved_cars = $res_approved ? pg_fetch_all($res_approved) : [];
 
 function getImageUrl($image_path) {
-    if (!$image_path) return '/assets/images/no-image.png';
-    return strpos($image_path, '/') === 0 ? $image_path : '/' . $image_path;
+    if (!$image_path) return 'https://via.placeholder.com/400x300?text=No+Image';
+    
+    // If it's already a full URL, return as is
+    if (filter_var($image_path, FILTER_VALIDATE_URL)) {
+        return $image_path;
+    }
+    
+    // If it starts with /, it's already a proper path
+    if (strpos($image_path, '/') === 0) {
+        return $image_path;
+    }
+    
+    // Otherwise, add leading slash
+    return '/' . $image_path;
 }
 ?>
 <!DOCTYPE html>
@@ -137,6 +162,11 @@ function getImageUrl($image_path) {
             <div>
                 <label for="image" class="block font-semibold mb-1">Car Image *</label>
                 <input id="image" type="file" name="image" accept="image/*" required class="w-full" />
+            </div>
+            <div class="md:col-span-2">
+                <label for="image_url" class="block font-semibold mb-1">Or Image URL</label>
+                <input id="image_url" type="url" name="image_url" placeholder="https://example.com/image.jpg" class="w-full p-2 border rounded" />
+                <p class="text-sm text-gray-500 mt-1">You can either upload a file or provide an image URL</p>
             </div>
             <div class="md:col-span-2">
                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded">Add Car</button>

@@ -93,11 +93,23 @@ $res_b = pg_query_params($conn, $sql_b, [$user_id]);
 $bookings = $res_b ? pg_fetch_all($res_b) : [];
 
 /**
- * Since image_path now already starts with a leading slash,
- * just return it directly.
+ * Handle both URLs and local file paths for images
  */
 function getImageUrl($imagePath) {
-    return $imagePath;
+    if (!$imagePath) return 'https://via.placeholder.com/400x300?text=No+Image';
+    
+    // If it's already a full URL, return as is
+    if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
+        return $imagePath;
+    }
+    
+    // If it starts with /, it's already a proper path
+    if (strpos($imagePath, '/') === 0) {
+        return $imagePath;
+    }
+    
+    // Otherwise, add leading slash
+    return '/' . $imagePath;
 }
 ?>
 <!DOCTYPE html>

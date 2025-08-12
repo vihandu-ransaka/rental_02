@@ -43,7 +43,7 @@ try {
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
       <?php foreach ($cars as $car): ?>
         <div class="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden flex flex-col">
-          <img src="<?php echo htmlspecialchars($car['image_path']); ?>" alt="<?php echo htmlspecialchars($car['model']); ?>" class="w-full h-48 object-cover">
+          <img src="<?php echo htmlspecialchars(getImageUrl($car['image_path'])); ?>" alt="<?php echo htmlspecialchars($car['model']); ?>" class="w-full h-48 object-cover" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image';">
           <div class="p-4 flex flex-col flex-grow">
             <h2 class="text-xl font-semibold text-gray-800"><?php echo htmlspecialchars($car['model']); ?></h2>
             <p class="text-gray-600 flex-grow mt-2"><?php echo htmlspecialchars($car['description']); ?></p>
@@ -85,6 +85,25 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
+
+<?php
+function getImageUrl($image_path) {
+    if (!$image_path) return 'https://via.placeholder.com/400x300?text=No+Image';
+    
+    // If it's already a full URL, return as is
+    if (filter_var($image_path, FILTER_VALIDATE_URL)) {
+        return $image_path;
+    }
+    
+    // If it starts with /, it's already a proper path
+    if (strpos($image_path, '/') === 0) {
+        return $image_path;
+    }
+    
+    // Otherwise, add leading slash
+    return '/' . $image_path;
+}
+?>
 
 </body>
 </html>

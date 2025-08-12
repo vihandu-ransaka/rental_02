@@ -106,8 +106,20 @@ $res_approved = pg_query($conn, $approved_sql);
 $approved_cars = $res_approved ? pg_fetch_all($res_approved) : [];
 
 function getImageUrl($image_path) {
-    if (!$image_path) return '/assets/images/no-image.png';
-    return strpos($image_path, '/') === 0 ? $image_path : '/' . $image_path;
+    if (!$image_path) return 'https://via.placeholder.com/400x300?text=No+Image';
+    
+    // If it's already a full URL, return as is
+    if (filter_var($image_path, FILTER_VALIDATE_URL)) {
+        return $image_path;
+    }
+    
+    // If it starts with /, it's already a proper path
+    if (strpos($image_path, '/') === 0) {
+        return $image_path;
+    }
+    
+    // Otherwise, add leading slash
+    return '/' . $image_path;
 }
 ?>
 

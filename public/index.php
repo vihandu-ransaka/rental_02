@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="grid gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       <?php foreach ($search_results as $car): ?>
         <div class="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden">
-          <img src="<?php echo htmlspecialchars($car['image_path']); ?>" alt="<?php echo htmlspecialchars($car['car_name']); ?>" class="w-full h-48 object-cover" />
+          <img src="<?php echo htmlspecialchars(getImageUrl($car['image_path'])); ?>" alt="<?php echo htmlspecialchars($car['car_name']); ?>" class="w-full h-48 object-cover" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image';" />
           <div class="p-4">
             <h3 class="text-lg font-semibold text-gray-800"><?php echo htmlspecialchars($car['car_name']); ?></h3>
             <p class="text-sm text-gray-600"><?php echo htmlspecialchars($car['brand']); ?> - <?php echo htmlspecialchars($car['model_year']); ?></p>
@@ -128,6 +128,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <?php include 'includes/footer.php'; ?>
 <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+
+<?php
+function getImageUrl($image_path) {
+    if (!$image_path) return 'https://via.placeholder.com/400x300?text=No+Image';
+    
+    // If it's already a full URL, return as is
+    if (filter_var($image_path, FILTER_VALIDATE_URL)) {
+        return $image_path;
+    }
+    
+    // If it starts with /, it's already a proper path
+    if (strpos($image_path, '/') === 0) {
+        return $image_path;
+    }
+    
+    // Otherwise, add leading slash
+    return '/' . $image_path;
+}
+?>
 
 </body>
 </html>
