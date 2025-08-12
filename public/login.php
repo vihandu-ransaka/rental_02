@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Redirect by role
                 switch ($user['role']) {
                     case 'admin':
+                        $_SESSION['admin_id'] = $user['id']; // Set admin_id for admin dashboard
                         header('Location: admin.php');
                         exit;
                     case 'customer':
