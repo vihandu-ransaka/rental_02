@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $update_booking_sql = "UPDATE bookings SET status = 'booked' WHERE id = $1";
     pg_query_params($conn, $update_booking_sql, [$booking_id]);
 
-    // Mark car unavailable
+    // Mark car unavailable in available_cars table
     $update_car_sql = "UPDATE available_cars SET available = FALSE WHERE car_id = $1";
     pg_query_params($conn, $update_car_sql, [$booking['car_id']]);
 

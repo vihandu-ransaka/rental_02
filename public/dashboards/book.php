@@ -36,6 +36,24 @@ if (!$car['available']) {
     die('Car is not available.');
 }
 
+// Check for conflicting bookings
+$conflict_check = "
+    SELECT COUNT(*) as count FROM bookings 
+    WHERE car_id = $1 
+    AND status IN ('booked', 'confirmed', 'pending_payment')
+    AND (
+        (pickup_date <= $2 AND return_date >= $2) OR
+        (pickup_date <= $3 AND return_date >= $3) OR
+        (pickup_date >= $2 AND return_date <= $3)
+    )
+";
+$conflict_res = pg_query_params($conn, $conflict_check, [$car_id, $pickup_date, $return_date]);
+$conflict = pg_fetch_assoc($conflict_res);
+
+if ($conflict['count'] > 0) {
+    die('Car is not available for the selected dates.');
+}
+
 $days = $d1->diff($d2)->days + 1;
 $total_price = $days * (float)$car['price_per_day'];
 

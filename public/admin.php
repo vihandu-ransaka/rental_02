@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['admin_id']) && $_SESSION['role'] !== 'admin') {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: login.php');
     exit;
 }
@@ -47,6 +47,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         pg_query_params($conn, "INSERT INTO car_images (car_id, image_path, created_at) VALUES ($1, $2, NOW())", [$new_car_id, $img['image_path']]);
                     }
 
+                    // Add to available_cars table
+                    pg_query_params($conn, "
+                        INSERT INTO available_cars (car_id, car_name, model, brand, model_year, price_per_day, image_path, available)
+                        SELECT $1, car_name, model, brand, model_year, price_per_day, 
+                               (SELECT image_path FROM car_images WHERE car_id = $1 LIMIT 1), TRUE
+                        FROM cars WHERE id = $1
+                    ", [$new_car_id]);
+
                     // Delete pending car and its images
                     pg_query_params($conn, "DELETE FROM car_images WHERE car_id = $1", [$car_id]);
                     pg_query_params($conn, "DELETE FROM pending_cars WHERE car_id = $1", [$car_id]);
@@ -70,14 +78,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             pg_query_params($conn, "DELETE FROM car_images WHERE car_id = $1", [$car_id]);
             pg_query_params($conn, "DELETE FROM pending_cars WHERE car_id = $1", [$car_id]);
             $_SESSION['message'] = "Car rejected and deleted.";
-            header('Location: admin_dashboard.php');
+            header('Location: admin.php');
             exit;
         } elseif ($action === 'delete') {
             // Delete approved car and its images
+            pg_query_params($conn, "DELETE FROM available_cars WHERE car_id = $1", [$car_id]);
             pg_query_params($conn, "DELETE FROM car_images WHERE car_id = $1", [$car_id]);
             pg_query_params($conn, "DELETE FROM cars WHERE id = $1", [$car_id]);
             $_SESSION['message'] = "Approved car deleted.";
-            header('Location: admin_dashboard.php');
+            header('Location: admin.php');
             exit;
         }
     }

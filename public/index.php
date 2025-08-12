@@ -1,5 +1,6 @@
 <?php
 // index.php
+session_start();
 include 'includes/config.php';
 
 // Initialize variables

@@ -39,10 +39,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['return_booking_id']))
 pg_query($conn, "
     UPDATE available_cars ac
     SET available = TRUE
-    WHERE ac.car_id IN (
-        SELECT b.car_id
-        FROM bookings b
-        WHERE b.status = 'returned'
+    WHERE EXISTS (
+        SELECT 1 FROM bookings b 
+        WHERE b.car_id = ac.car_id 
+        AND b.status = 'returned'
+        AND NOT EXISTS (
+            SELECT 1 FROM bookings b2 
+            WHERE b2.car_id = ac.car_id 
+            AND b2.status IN ('booked', 'confirmed')
+        )
     )
 ");
 

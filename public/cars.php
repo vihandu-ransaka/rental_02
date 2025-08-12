@@ -1,5 +1,6 @@
 <?php
 // cars.php
+session_start();
 
 // Database connection using PDO (adjust credentials)
 $host = 'localhost';
